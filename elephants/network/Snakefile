@@ -1,0 +1,80 @@
+#############
+# Generate a training dataset of elephant simulations
+# Train a neural network
+# Estimate population size for empirical elephant data
+# Generate a parametric bootstrapping distribution for estimates
+
+import yaml
+
+### Specify config file ###
+configfile: "config.yaml" 
+workdir: config['workdir']
+empirical_folder = config['empirical_folder']
+# Folder where training simulations are stored
+simulation_folder = config['simulation_folder']
+# Labels for training sims
+labels = config['labels']
+
+rule all:
+    input:
+         "network_output/bootstrap_reps.csv"
+
+# checkpoint training_data:
+#     params:
+#         folder = config['simulation_folder'],
+#     output:
+#         labels = config['labels']
+#     shell:
+#         f"snakemake -c8 -s {config['simulation_folder']}/Snakefile --configfile {config['simulation_folder']}/config.yaml -d {config['simulation_folder']} \ntouch {output}"
+
+# Can make this faster on talapas by reading in all files during init of data loader.    
+rule train_network:
+    input:
+        labels = config['labels'],
+        empirical_intensity = f"{empirical_folder}/empirical_intensity.png",
+        empirical_pops = f"{empirical_folder}/empirical_pops.png",
+        empirical_recaps = f"{empirical_folder}/empirical_recaps.png",
+    params:
+        folder = config['simulation_folder'],
+        ptrain = 0.75
+    output:
+        network = "network_output/network.pth",
+        hist = "network_output/training_hist.csv",
+        test_res = "network_output/test_res.csv",
+        pred = "network_output/pred.txt"
+    # resources: 
+    #     runtime = '4h',
+    #     mem_mb = 50000,
+    #     gpus = 1,
+    #     slurm_partition = "kerngpu,gpu",
+    #     slurm_extra = "--gres=gpu:1 --constraint=a100"
+    script:
+        "scripts/train_network.py"
+
+# Run parametric bootstrap simulations
+rule bootstrap_sims:
+    input:
+        pred = rules.train_network.output.pred
+    output:
+        output_folder = "network_output/bootstrap_sims_folder.txt"
+    params:
+        nreps = 500,
+        seed = 198
+    script:
+        "scripts/bootstrap_sims.py"
+
+# Predict from bootstrap sims
+rule bootstrap_reps:
+    input:
+        network = rules.train_network.output.network,
+        sim_folder = rules.bootstrap_sims.output.output_folder
+    output:
+        bootstrap_reps = "network_output/bootstrap_reps.csv"
+    # resources: 
+    #     runtime = '4h',
+    #     mem_mb = 50000,
+    #     gpus = 1,
+    #     slurm_partition = "kerngpu,gpu",
+    #     slurm_extra = "--gres=gpu:1 --constraint=a100"
+    script:
+        "scripts/bootstrap_preds.py"
