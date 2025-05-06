@@ -1,0 +1,26 @@
+name: elephants
+channels:
+    - conda-forge
+    - bioconda
+    - pytorch
+dependencies:
+    - python=3.11
+    - msprime
+    - pyslim
+    - tskit
+    - numpy
+    - scipy
+    - pytorch
+    - snakemake
+    - jupyterlab
+    - matplotlib
+    - scikit-learn
+    - slim
+    - torchvision
+    - gpustat
+    - pandas
+    - R
+    - r-tidyverse
+    - r-sf
+    - r-lubridate
+    - snakemake-executor-plugin-slurm # for slurm clusters

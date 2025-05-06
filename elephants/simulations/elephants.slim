@@ -1,0 +1,346 @@
+initialize() {
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(keepPedigrees=T, dimensionality="xy");
+	initializeSex("A");
+
+	// Random seed
+	if (!exists("RANDOM_SEED")) {
+		defineConstant("RANDOM_SEED", 20);
+	}
+	setSeed(RANDOM_SEED);
+	
+	// Output files: 	SPATIAL_SAMPLE, SPATIAL_SAMPLE_LOCS, RANDOM_SAMPLE, POPSIZE_FILE
+	// Population size: N0
+	// Sampling times, minimum sample size per time, and potential locations: SAMPLE_YEARS, SAMPLE_DAYS, SAMPLE_SIZE, POTENTIAL_LOCS_FILE
+	
+	// Output files for sampled individuals, metadata, and population size
+	if (!exists("SPATIAL_SAMPLE")) {
+		defineConstant("SPATIAL_SAMPLE", "spatial_sample.csv");
+	}
+	writeFile(SPATIAL_SAMPLE, paste(c("individual", "parent1", "parent2", "age", "sex", "year", "day", "x", "y"), sep = ","));
+	if (!exists("SPATIAL_SAMPLE_LOCS")) {
+		defineConstant("SPATIAL_SAMPLE_LOCS", "spatial_sample_intensity.csv");
+	}
+	writeFile(SPATIAL_SAMPLE_LOCS, "x,y,year,day,nsampled");
+	
+	if (!exists("RANDOM_SAMPLE")) {
+		defineConstant("RANDOM_SAMPLE", "random_sample.csv");
+	}
+	writeFile(RANDOM_SAMPLE, paste(c("individual", "parent1", "parent2", "age", "sex", "year", "day", "x", "y"), sep = ","));
+	if (!exists("POPSIZE_FILE")) {
+		defineConstant("POPSIZE_FILE", "popsize.csv");
+	}
+	writeFile(POPSIZE_FILE, "year,N");
+	
+	// POPULATION SIZE PARAMETERS
+	// Initial population size
+	if (!exists("N0")) {
+		defineConstant("N0", 3000);
+	}
+	// Carrying capacity for density dependence (keeps population from blowing up)
+	if (!exists("K")) {
+		defineConstant("K", N0);
+	}
+	
+	// REPRODUCTION PARAMETERS
+	// Interaction distance for mate choice
+	if (!exists("SIGMA")) {
+		defineConstant("SIGMA", 5.0);
+	}
+	// Interaction function for spatial mate choice
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SIGMA, sexSegregation = "FM");
+	
+	// Age at which females first reproduce
+	if (!exists("FAGEREPRO")) {
+		defineConstant("FAGEREPRO", 20);
+	}
+	// Age at which males first reproduce
+	if (!exists("MAGEREPRO")) {
+		defineConstant("MAGEREPRO", 25);
+	}
+	// Number of offspring each female has when she breeds
+	if (!exists("NOFFSPRING")) {
+		defineConstant("NOFFSPRING", 1);
+	}
+	//DISPERSAL PARAMETERS
+	// Distance for one year of dispersal
+	if (!exists("DISPERSAL_SIGMA")) {
+		defineConstant("DISPERSAL_SIGMA", 1.0);
+	}
+	
+	//SURVIVAL PARAMETERS
+	// Survival from life table
+	if (!exists("SURVIVAL_FILE")) {
+		defineConstant("SURVIVAL_FILE", "one_year_survival.csv");
+	}
+	survival = readCSV(SURVIVAL_FILE);
+	defineConstant("SURVIVAL", survival);
+	
+	// Increase survival probabilities by raising to a power less than 1
+	if (!exists("SURVIVAL_POWER")) {
+		defineConstant("SURVIVAL_POWER", 1);
+	}
+	
+	// Files containing input to slim
+	if(!exists("MAP_FILE")){
+		defineConstant("MAP_FILE",  "kibale.png");
+	}
+	if(!exists("SAMPLE_TIMES_FILE")){
+		defineConstant("SAMPLE_TIMES_FILE",  "sample_times.csv");
+	}
+	// Potential sampling locations
+	if(!exists("POTENTIAL_LOCS_FILE")){
+		defineConstant("POTENTIAL_LOCS_FILE", "sampling_locations.txt");
+	}
+	
+	// Width and height of map
+	if(!exists("MAX_WIDTH")){
+		defineConstant("MAX_WIDTH", 37.76);
+	}
+	if(!exists("MAX_HEIGHT")){
+		defineConstant("MAX_HEIGHT", 55.85);
+	}
+		
+	// SAMPLING PARAMETERS
+	// Sampling size, times and locations
+	// Number of individuals total to sample
+	// This can either come from the file or from the command line
+	if(!exists("SAMPLE_SIZE")){
+		defineConstant("SAMPLE_SIZE", 300);
+	}
+	// Sampling times
+	defineConstant("SAMPLE_TIMES",  readCSV(SAMPLE_TIMES_FILE));
+	// Compute sample size per day
+	defineGlobal("nPerDay", SAMPLE_SIZE/length(SAMPLE_TIMES.getValue("SAMPLE_DAYS")));
+	// Sampling locations
+	sampling_locations = readCSV(POTENTIAL_LOCS_FILE);
+	defineConstant("SAMPLING_LOCATIONS", sampling_locations);
+	
+	// Keep track of number of sampled individuals
+	defineGlobal("TOTAL_SAMPLED", 0);
+	
+	// Sampling interaction function
+	// Sampling radius
+	if(!exists("SAMPLE_SIGMA")){
+		defineConstant("SAMPLE_SIGMA",  1.0);
+	}
+	initializeInteractionType(3, "xy", reciprocal=T, maxDistance=SAMPLE_SIGMA);
+	
+	// Probability an individual within radius SAMPLE_SIGMA of a chosen sampling location is sampled
+	if(!exists("PSAMPLE")){
+		defineConstant("PSAMPLE", 1.0);
+	}
+	
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = T;
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, 99999);
+	initializeMutationRate(0);
+	initializeRecombinationRate(1e-8);
+}
+function (float)one_move(float x, float y, integer n, float dispersal_sigma){
+	// n days of movement from coordinates (x, y)
+	distance = sqrt(n*(dispersal_sigma^2)/365);
+	max_tries = 20;
+	new_pos = c(x, y) + rnorm(2, 0, distance);
+	//new_pos = p1.pointUniform(1);
+	// Is position within Kibale's bounds?
+	inBounds = KIBALE.mapValue(new_pos) == 1.0;
+	tries = 1;
+	while (!inBounds & tries <= max_tries){
+		new_pos = c(x, y) + rnorm(2, 0, distance);
+		//new_pos = p1.pointUniform(1);
+		inBounds = KIBALE.mapValue(new_pos) == 1.0;
+		tries = tries + 1;
+	}
+	if (tries <= tries){
+		return(new_pos);
+	}
+	else{
+		print("20 tries all out of bounds");
+		return(c(x, y));
+	}
+}
+
+2: first() {
+	i1.evaluate(p1);
+}
+
+reproduction(p1, "F") {
+	// First check if female is old enough to breed	and has waited long enough since the last offspring
+	// Use logistic functions for probability of breeding
+	page = 1/(1+exp(-0.5*(individual.age-FAGEREPRO)));
+	// Years since female last became pregnant
+	// Could also check if offspring is alive
+	gap = community.tick - individual.getValue("last_rep");
+	pgap = 1/(1+exp(-2*(gap-5)));
+	pbreed = page*pgap;
+	if(runif(1) < pbreed){
+		potential_mates = i1.nearestInteractingNeighbors(individual, length(p1.individuals));
+		//print(potential_mates.size() + "interacting males");
+		//potential_mates = p1.subsetIndividuals(sex = "M");
+		if (potential_mates.size()){
+			m_a = potential_mates.age;
+			p_mate = asInteger(m_a > MAGEREPRO);
+			if(sum(p_mate) > 0){
+				mate = sample(potential_mates, size = 1, weights = p_mate);
+				individual.setValue("last_rep", community.tick);
+				// Generate an offspring and put it in p2 (the population of unborn individuals)
+				offspring1 = p2.addCrossed(individual, mate);
+				// Assign offspring to mother
+				offspring1.setValue("mother", individual.pedigreeID);
+				if(offspring1.sex == "F"){
+					offspring1.color = "pink";
+					offspring1.setValue("last_rep", -6);
+				}
+				if(offspring1.sex == "M"){
+					offspring1.color = "blue";
+				}
+			}
+		}
+	}
+}
+
+1 early() {
+	// Initial population
+	sim.addSubpop("p1", asInteger(N0*1.25));
+	// Population of unborn individuals
+	sim.addSubpop("p2", 0);
+	
+	mapImage = Image(MAP_FILE);
+	p1.setSpatialBounds(c(0.0, 0.0, MAX_WIDTH, MAX_HEIGHT));
+	p2.setSpatialBounds(c(0.0, 0.0, MAX_WIDTH, MAX_HEIGHT));
+	map = p1.defineSpatialMap("kibale", "xy", 1.0-mapImage.floatR, valueRange = c(0.0, 1.0), colors = c("white", "green"));
+	p2.defineSpatialMap("kibale2", "xy", 1.0-mapImage.floatR, valueRange = c(0.0, 1.0), colors = c("white", "green"));
+	defineConstant("KIBALE", map);
+	
+	// Initial ages
+	ages = 0:60;
+	age_distribution = rep(1, 61);
+	p1.individuals.age = sample(ages, length(p1.individuals), replace = T, weights = age_distribution);
+	
+	// Individuals are given a random location within kibale
+	// Last year female bred is set
+	for (ind in p1.individuals){
+		if(ind.sex == "F"){
+			ind.color = "pink";
+			// Last year individual bred
+			ind.setValue("last_rep" ,sample(-6:0, 1));
+		}
+		else{
+			ind.color = "blue";
+		}
+		// Generate new position uniformly
+		pos = p1.pointUniform();
+		// Is position within Kibale's bounds?
+		inBounds = KIBALE.mapValue(pos) == 1.0;
+		while (!inBounds){
+			pos = p1.pointUniform();
+			inBounds = KIBALE.mapValue(pos) == 1.0;
+		}
+		ind.setSpatialPosition(pos);
+	};
+}
+early() {
+	
+	// Age-based mortality
+	for (ind in p1.individuals){
+		surv_prob = ( K/p1.individualCount)*SURVIVAL.getValue(ind.sex)[ind.age]^SURVIVAL_POWER;
+		alive = runif(1) < surv_prob;
+		ind.fitnessScaling = asFloat(alive);
+	}
+	
+	// Births
+	unborn = p2.individuals;
+	potential_births = unborn[unborn.age >=2];
+	if(potential_births.size()){
+		// Loop through every potential birth
+		for(fetus in potential_births){
+			mother = sim.individualsWithPedigreeIDs(fetus.getValue("mother"),  p1);
+			// If mother is alive, transfer to p1 and set age to 0
+			if(mother.size()){
+				p1.takeMigrants(fetus);
+				fetus.age = 0;
+				fetus.setValue("group", "juvenile");
+				fetus.setSpatialPosition(mother.spatialPosition);
+			}
+			// If mother is dead, fetus dies
+			else{
+				fetus.fitnessScaling = 0.0;
+			}
+		}
+	}
+}
+
+late()
+{
+	// Is this a year where sampling takes place?
+	sample_year = any(SAMPLE_TIMES.getValue("SAMPLE_YEARS") == community.tick);
+	// If it is a sampling year, dispersal happens every day days for one year
+	if(sample_year){
+		dispersal_days = 1;
+		sample_days = SAMPLE_TIMES.getValue("SAMPLE_DAYS")[SAMPLE_TIMES.getValue("SAMPLE_YEARS") == community.tick];
+	}
+	// Otherwise, dispersal happens only once per year
+	else{
+		dispersal_days = 365;
+	}
+	periods = asInteger(365/dispersal_days);
+	for (day in 1:periods){
+		if(sample_year){
+			sample_day = any(sample_days == day);
+			if(sample_day){
+				sample = T;
+			}
+			else{
+				sample = F;
+			}
+		}
+		else{
+			sample = F;
+		}
+		
+		// Move individuals around
+		for (ind in p1.individuals){
+			pos = one_move(ind.spatialPosition[0], ind.spatialPosition[1], dispersal_days, DISPERSAL_SIGMA);
+			ind.setSpatialPosition(pos);
+		}
+		if(sample){
+			// Keep track of the number sampled that day
+			nsampled_day = 0;
+			// Sampling interaction function
+			i3.evaluate(p1);
+			// Randomize order of potential sampling locations
+			rows = 0:(SAMPLING_LOCATIONS.nrow-1);
+			rand_rows = sample(rows, size = length(rows));
+			pot_locs = SAMPLING_LOCATIONS.subsetRows(rand_rows);
+			pot_locs_i = 0;
+			while(TOTAL_SAMPLED < SAMPLE_SIZE & nsampled_day < nPerDay & pot_locs_i < pot_locs.nrow){
+				x = pot_locs.subset(pot_locs_i, "x");
+				y = pot_locs.subset(pot_locs_i, "y");
+				loc = c(x, y);
+				n_near = i3.neighborCountOfPoint(loc, p1);
+				neighbors = i3.nearestNeighborsOfPoint(loc, p1,n_near);
+				sampled_i = rbinom(n_near, 1, PSAMPLE);
+				sampled = neighbors[sampled_i==1];
+				nsampled_day = nsampled_day + length(sampled);
+				defineGlobal("TOTAL_SAMPLED", TOTAL_SAMPLED + length(sampled));
+				pot_locs_i = pot_locs_i + 1;
+				writeFile(SPATIAL_SAMPLE_LOCS, paste(c(loc, community.tick, day, length(sampled)), sep = ","), append = T);
+				for(ind in sampled){
+					writeFile(SPATIAL_SAMPLE, paste(c(ind.pedigreeID, ind.pedigreeParentIDs, ind.age, ind.sex, community.tick, day), sep = ",") + "," + paste(c(ind.x, ind.y), sep = ","), append = T);
+				}
+			}
+			// print("Number sampled" + nsampled_day);
+			random_sample = p1.sampleIndividuals(nsampled_day);
+			for(ind in random_sample){
+				writeFile(RANDOM_SAMPLE, paste(c(ind.pedigreeID, ind.pedigreeParentIDs, ind.age, ind.sex, community.tick, day), sep = ",") + "," + paste(c(ind.x, ind.y), sep = ","), append = T);
+			}
+		}
+	}
+	writeFile(POPSIZE_FILE, paste(c(community.tick, p1.individualCount), sep = ","), append = T);
+}
+
+max(SAMPLE_TIMES.getValue("SAMPLE_YEARS")) late() {
+	sim.simulationFinished();
+}

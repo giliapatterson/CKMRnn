@@ -1,0 +1,38 @@
+folder: "elephant_simulations/"
+# Input files from pre-processing data
+kibale_image: 'kibale.png'
+sample_times: 'sample_times.csv'
+sampling_locations: 'empirical_sampling_locations.txt'
+# Random seed for generating parameters
+seed: 30
+# Number of sims to run
+#nreps: 10000
+nreps: 10
+# Uniform priors on population size and dispersal and mate choice radii
+minN: 100
+maxN: 1500
+# Dispersal radius
+min_DS: 5.0
+max_DS: 10.0
+# Mate choice radius
+min_MC: 5.0
+max_MC: 10.0
+# Fixed parameters
+FAGEREPRO: 20
+MAGEREPRO: 25
+SURVIVAL_POWER: 1
+# Sampling radius
+SAMPLE_SIGMA: 1.0
+PSAMPLE: 1.0
+## Parameters that were taken from the pre-processing R script
+## Computed based on the real landscape and samples
+sample_size: 256
+# Width and height of SLiM landscape (km)
+MAXWIDTH: 37.76
+MAXHEIGHT: 55.85
+# Number of pixels per km in spaghetti images
+pxperkm: 15
+# Width and height of sampling grid cells (km)
+DW: 1.021
+DH: 1.015
+survival_file: 'one_year_survival.csv'

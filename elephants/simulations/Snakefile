@@ -1,0 +1,125 @@
+import numpy as np
+
+### Specify config file ###
+configfile: "config.yaml" # For generating training sims
+#configfile: "config_bootstrap.yaml" # For generating empirical bootstrap replicates
+
+# Uniform prior distributions on population size and dispersal distance and mate choice parameters
+# Population size
+minN = config['minN']
+maxN = config['maxN']
+# Dispersal distance
+min_DS = config['min_DS']
+max_DS = config['max_DS']
+# Mate choice
+min_MC = config['min_MC']
+max_MC = config['max_MC']
+
+# Number of times to run each simulation
+reps = np.arange(config['nreps'])
+
+# Sample sizes for each simulation
+n = config['sample_size']
+
+# Other parameters that stay constant
+# Female and male age of first reproduction
+FAGEREPRO = config['FAGEREPRO']
+MAGEREPRO = config['MAGEREPRO']
+# Power for survival probabilities
+SURVIVAL_POWER = config['SURVIVAL_POWER']
+# Distance from sampling location at which individuals can be sampled
+SAMPLE_SIGMA = config['SAMPLE_SIGMA']
+# Probability of sampling an individual within distance SAMPLE_SIGMA of the location
+PSAMPLE = config['PSAMPLE']
+# Width and height of the slim landscape
+MAXWIDTH = config['MAXWIDTH']
+MAXHEIGHT = config['MAXHEIGHT']
+# Width and height of sampling grid cells (km)
+DW = config['DW']
+DH = config['DH']
+
+folder = config['folder']
+
+# Preprocessing output files
+kibale_image = config['kibale_image']
+sample_times = config['sample_times']
+sampling_locations = config['sampling_locations']
+survival_file = config['survival_file']
+
+scattergather:
+    split=8
+
+rule all:
+    input:
+        f"{folder}spatial_labels.csv"
+
+rule generate_params:
+    output:
+        df = scatter.split(folder + "pre_sim_params/{scatteritem}.params.df")
+    params:
+        seed = config['seed'],
+        minN = minN,
+        maxN = maxN,
+        n = n,
+        reps = reps,
+        min_DS = min_DS,
+        max_DS = max_DS,
+        min_MC = min_MC,
+        max_MC = max_MC,
+        FAGEREPRO = FAGEREPRO,
+        MAGEREPRO = MAGEREPRO,
+        SURVIVAL_POWER = SURVIVAL_POWER,
+        SAMPLE_SIGMA = SAMPLE_SIGMA,
+        PSAMPLE = PSAMPLE,
+        MAXHEIGHT = MAXHEIGHT,
+        MAXWIDTH = MAXWIDTH,
+        DW = DW,
+        DH = DH,
+        pxperkm = config['pxperkm']
+    script:
+        "scripts/generate_params.py"
+
+rule run_slim:
+    input:
+        df = "{folder}pre_sim_params/{scatteritem}.params.df",
+        kibale_image = kibale_image,
+        sample_times = sample_times,
+        sampling_locations = sampling_locations,
+        survival_file = survival_file
+    output:
+        df = "{folder}post_sim_params/{scatteritem}.sim.df"
+    params:
+        folder = folder,
+        BATCH_ID = "{scatteritem}"
+    script:
+        "scripts/run_sims.py"
+
+rule plot_intensity:
+    input:
+        df = rules.run_slim.output.df,
+    output:
+        df = "{folder}post_intensity_params/{scatteritem}.params.df"
+    params:
+        folder = folder,
+        BATCH_ID = "{scatteritem}"
+    script:
+        "scripts/plot_sampling.py"
+
+rule plot_spatial:
+    input:
+        df = rules.plot_intensity.output.df
+    output:
+        df = "{folder}metadata/{scatteritem}.metadata.df"
+    params:
+        folder = folder,
+        BATCH_ID = "{scatteritem}"
+    script:
+        "scripts/plot_spaghetti.py"
+
+rule spatial_labels:
+    input:
+        df = gather.split(folder + "metadata/{scatteritem}.metadata.df")
+    output:
+        labels = f"{folder}spatial_labels.csv"
+    script:
+        "scripts/combine_metadata.py"
