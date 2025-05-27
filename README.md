@@ -1,62 +1,13 @@
 # CKMRnn: Simulation-based spatially explicit close kin mark recapture
-## Simulation tests
-
-To install and load required packages to replicate the simulation tests:
-
-```bash
-cd simulation_tests
-conda env create -f environment.yml
-conda activate ckmr_sim_tests
-```
-Leslie matrix model for bearded seals: `leslie_model.R`
-
-### Constant size simulations
-`simulation_tests/bearded_seals/Snakefile`: Snakemake workflow to run constant population size training simulations.
-
-```bash
-cd bearded_seals
-snakemake --cores
-```
-
-Output
-
-`simulation_test/bearded_seals/labels.csv`: Parameters, population sizes, and number of kin pairs for each training simulation.
-`simulation_test/bearded_seals/bearded_seal_images/`: Kin and sampling intensity images for the training simulations
-
-### Varying trend simulations
-`simulation_tests/bearded_seals_popsize_change/Snakefile`: : Snakemake workflow to run varying population trend training simulations.
-
-```bash
-cd bearded_seals_popsize_change
-snakemake --cores
-```
-
-Output
-
-`simulation_tests/bearded_seals_popsize_change/labels.csv`: Parameters, population sizes, and number of kin pairs for each training simulation.
-`simulation_tests/bearded_seals/bearded_seal_images/`: Kin and sampling intensity images for the training simulations
-
-### Network training and testing
-#### Accuracy with biased sampling
-`simulation_tests/bearded_seal_network_sibs.ipynb`
-"bearded_seals_nn_results/model_pops_sibs.csv"
-
-#### The effect of misspecified population trend
-simulation_tests/bearded_seals_popsize_change/test_sibling_network.ipynb
-bearded_seals_nn_results/model_pops_sibs_changing size.csv
-
-#### Training for robustness to population trend
-simulation_tests/bearded_seals_popsize_change/bearded_seal_network_sibs_popsize_decline.ipynb
-/bearded_seals_nn_results/model_pops_sibs_popsize_change.csv
-
 ## Estimation of population size in African elephants
 
-To replicate the results of the paper, run the following commands. More detailed descriptions of the scripts and data files are below.
+To replicate the results of the elephant analysis in our paper, run the following commands. More detailed descriptions of the scripts and data files are below.
 
-1. Install and load required packages.
+1. Install and load required packages using [mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html).
+
 ```bash
 cd elephants
-conda env create -f environment.yml
+mamba env create -f environment.yml
 conda activate elephants
 ```
 
@@ -98,6 +49,12 @@ Rscript nn_results.R
 
 `elephants/processing.R`: Script to processes empirical data for use in the simulation-based CKMR analysis.
 
+Output
+
+`elephants/simulations/kibale.png`: Map of Kibale to use in the simulation.
+
+`elephants/empirical_data/processed/`: Data frames with information about sampling, recaptures, and parent-offspring pairs in the empirical data.
+
 ### Simulation
 
 `elephants/simulations/Snakefile`: Snakemake workflow to generate training dataset.
@@ -132,3 +89,71 @@ Output
 
 ### Reference
 1. Goodfellow CK, Chusyd DE, Bird SR, Babaasa D, Chapman CA, Hickey JR, et al. Elephants inhabiting two forested sites in western Uganda exhibit contrasting patterns of species identity, density, and history of hybridization. 2025;:2025.05.13.653790.
+
+## Simulation tests
+
+To install and load required packages to replicate the simulation tests using [mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html):
+
+```bash
+cd simulation_tests
+mamba env create -f environment.yml
+conda activate ckmr_sim_tests
+```
+Leslie matrix model for bearded seals: `leslie_model.R`
+
+### Constant size simulations
+`simulation_tests/bearded_seals/Snakefile`: Snakemake workflow to generate constant population size training dataset.
+
+```bash
+cd bearded_seals
+snakemake --cores
+```
+
+Output
+
+`simulation_test/bearded_seals/labels.csv`: Parameters, population sizes, and number of kin pairs for each training simulation.
+
+`simulation_test/bearded_seals/bearded_seal_images/`: Kin and sampling intensity images for the training simulations
+
+### Varying trend simulations
+`simulation_tests/bearded_seals_trend/Snakefile`: Snakemake workflow to generate varying population trend training dataset.
+
+```bash
+cd bearded_seals_popsize_change
+snakemake --cores
+```
+
+Output
+
+`simulation_tests/bearded_seals_trend/labels.csv`: Parameters, population sizes, and number of kin pairs for each training simulation.
+
+`simulation_tests/bearded_seals_trend/bearded_seal_images/`: Kin and sampling intensity images for the training simulations
+
+### Network training and testing
+#### Accuracy with biased sampling
+
+`simulation_tests/constant_size_network.ipynb`: 
+
+Output
+
+`simulation_tests/bearded_seals_nn_results/constant_size_network.csv`: Performance of the trained network on held out test simulations. 
+
+#### The effect of misspecified population trend
+
+`simulation_tests/bearded_seals_trend/misspecified_trend.ipynb`
+
+Output
+
+`simulation_tests/bearded_seals_nn_results/misspecified_trend.csv`: Performance of network trained on constant size simulations when tested on simulations with varying population trends.
+
+#### Training for robustness to population trend
+
+`simulation_tests/bearded_seals_trend/varying_trend_network.ipynb`
+
+Output
+
+`simulation_tests/bearded_seals_nn_results/varying_trend_network.csv`: Performance of network trained on varying population trend simulations when tested on a held out set of simulations with varying population trends.
+
+### Visualizing results
+
+`simulation_tests/bearded_seals_nn_results/nn_plots.R`

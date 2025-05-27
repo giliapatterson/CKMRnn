@@ -19,6 +19,7 @@ dependencies:
     - torchvision
     - gpustat
     - r-tidyverse
+    - r-gridExtra
     - pandas
     - nlopt
     - polars

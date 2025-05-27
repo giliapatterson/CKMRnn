@@ -1,0 +1,13 @@
+*.snakemake
+*.DS_store
+*.ipynb_checkpoints
+*.Rhistory
+*.pth
+*.pt
+*.csv
+*.png
+*.pyc
+__pycache__
+*.html
+*.pdf
+*.df
