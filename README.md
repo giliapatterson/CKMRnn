@@ -8,13 +8,33 @@ cd simulation_tests
 conda env create -f environment.yml
 conda activate ckmr_sim_tests
 ```
-Leslie matrix model to calculate parameters for constant population size: `leslie_model.R`
+Leslie matrix model for bearded seals: `leslie_model.R`
 
 ### Constant size simulations
-`simulation_tests/bearded_seals`
+`simulation_tests/bearded_seals/Snakefile`: Snakemake workflow to run constant population size training simulations.
+
+```bash
+cd bearded_seals
+snakemake --cores
+```
+
+Output
+
+`simulation_test/bearded_seals/labels.csv`: Parameters, population sizes, and number of kin pairs for each training simulation.
+`simulation_test/bearded_seals/bearded_seal_images/`: Kin and sampling intensity images for the training simulations
 
 ### Varying trend simulations
-`simulation_tests/bearded_seals_popsize_change`
+`simulation_tests/bearded_seals_popsize_change/Snakefile`: : Snakemake workflow to run varying population trend training simulations.
+
+```bash
+cd bearded_seals_popsize_change
+snakemake --cores
+```
+
+Output
+
+`simulation_tests/bearded_seals_popsize_change/labels.csv`: Parameters, population sizes, and number of kin pairs for each training simulation.
+`simulation_tests/bearded_seals/bearded_seal_images/`: Kin and sampling intensity images for the training simulations
 
 ### Network training and testing
 #### Accuracy with biased sampling
@@ -31,12 +51,41 @@ simulation_tests/bearded_seals_popsize_change/bearded_seal_network_sibs_popsize_
 
 ## Estimation of population size in African elephants
 
-To install and load required packages to replicate the African elephant CKMRnn analysis:
+To replicate the results of the paper, run the following commands. More detailed descriptions of the scripts and data files are below.
 
+1. Install and load required packages.
 ```bash
 cd elephants
 conda env create -f environment.yml
 conda activate elephants
+```
+
+2. Process the empirical data.
+```bash
+Rscript processing.R
+```
+
+3. Generate training dataset.
+```bash
+cd simulations
+snakemake -c8
+```
+
+4. Generate images from the empirical data
+```bash
+cd ../network/empirical_input_images
+python empirical_images.py
+```
+
+5. Train network and generate parametric bootstrap replicates.
+```bash
+cd ..
+snakemake -c8
+```
+
+6. Plot results
+```
+Rscript nn_results.R
 ```
 
 ### Empirical data
@@ -51,32 +100,35 @@ conda activate elephants
 
 ### Simulation
 
-`elephants/simulations/elephant_simulations/spatial_labels.csv`: Summary of the simulations used for training and testing the neural network, including true population size and parameters used to run the simulation.
+`elephants/simulations/Snakefile`: Snakemake workflow to generate training dataset.
 
-Training data for the neural network was generated using a snakemake workflow, with the number of simulations to run and the parameter ranges set in `config.yaml`. To run the workflow:
+`elephants/simulations/config.yaml`: Config file for the snakemake workflow to set the number of training simulations to run and the parameter ranges for these simulations.
 
-```bash
-cd simulations
-snakemake -c8
-```
+Output
+
+`elephants/simulations/elephant_simulations/spatial_labels.csv`: Summary of the training dataset, including true population sizes, parameters used to run the simulations, and file locations for kin, recapture, and sampling intensity images.
 
 ### Network training, network testing, prediction, and parametric bootstrapping
 
-`network/empirical_input_images`: Images of the empirical data for input to the neural network. Generated using the script `empirical_images.py`.
+`elephants/network/empirical_input_images/empirical_images.py`: Creates images of half sibling pairs, recaptures, and sampling intensity from the empirical data.
 
-`network/network_output/training_hist.csv`: Training loss over the 20 training epochs.
+`elephants/network/Snakefile`: Snakemake workflow for network training and testing, predicton of population size for the empirical data, and parametric bootstrapping. Running the snakemake workflow requires access to a GPU.
 
-`network/network_output/test_res.csv`: Estimated population sizes for the held out test simulations.
+`elephants/network/config.yaml`: Config file for the snakemake workflow specifying the set of simulations to use for training and the empirical images.
 
-`network/network_output/pred.txt`: Estimated population size for the empirical Kibale elephants (450).
+`elephants/network/nn_results.R`: Code for generating figures and computing 95% CI.
 
-`network/network_output/bootstrap_reps.csv`: Estimated population sizes for the parametric bootstrap simulations.
+Output
 
-`network/nn_results.R`: Figures.
+`elephants/network/empirical_input_images`: Images of the empirical data for input to the neural network.
 
-Network training and testing, predicton of population size for the empirical data, and parametric bootstrapping were all performed using a Snakemake workflow. Running the workflow requires access to a GPU. To run the workflow:
+`elephants/network/network_output/training_hist.csv`: Training loss over the 20 training epochs.
 
-```bash
-cd network
-snakemake -c8
-```
+`elephants/network/network_output/test_res.csv`: Estimated population sizes for the held out test simulations.
+
+`elephants/network/network_output/pred.txt`: Estimated population size for the empirical data.
+
+`elephants/network/network_output/bootstrap_reps.csv`: Estimated population sizes for the parametric bootstrap simulations.
+
+### Reference
+1. Goodfellow CK, Chusyd DE, Bird SR, Babaasa D, Chapman CA, Hickey JR, et al. Elephants inhabiting two forested sites in western Uganda exhibit contrasting patterns of species identity, density, and history of hybridization. 2025;:2025.05.13.653790.
