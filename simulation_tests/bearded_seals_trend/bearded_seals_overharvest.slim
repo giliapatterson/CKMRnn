@@ -1,0 +1,142 @@
+initialize() {
+	initializeSLiMModelType("nonWF");
+
+	initializeSLiMOptions(keepPedigrees=T, dimensionality="xy");
+
+	initializeSex("A");
+	
+	if (!exists("OUTPUT")) { 
+      defineConstant("OUTPUT", "bearded_seal_parents.csv"); 
+   }
+   if (!exists("POPSIZE_FILE")) { 
+      defineConstant("POPSIZE_FILE", "bearded_seal_popsize.csv"); 
+   }
+	if (!exists("TICK_INTERVAL")) {
+   	defineConstant("TICK_INTERVAL", 1);
+   }
+   if (!exists("BURNIN")) {
+   	defineConstant("BURNIN", 40);
+   }
+   
+   if (!exists("R0")) {
+   	defineConstant("R0", 9);
+   	//defineConstant("R0", 3);
+   }
+   if (!exists("SIGMA")) {
+   	defineConstant("SIGMA", 1);
+   }
+   if (!exists("NOFFSPRING")) {
+   	defineConstant("NOFFSPRING", 1);
+   }
+   
+   if (!exists("SURVIVAL_MULTIPLIER")) {
+   	
+   	defineConstant("SURVIVAL_MULTIPLIER", 0.99);
+   }
+   
+   writeFile(OUTPUT, "individual,parent1,parent2,age,sex,sampling_time,x,y");
+   writeFile(POPSIZE_FILE, "sampling_time,N");
+   
+   // Parameters for survival model
+   defineConstant("C", 1.111);
+   defineConstant("ETA1", exp(-2.904));
+   defineConstant("ETA2", 1 + exp(0.586));
+   defineConstant("ETA3", exp(-2.579));
+   
+   // Initial population size
+   defineConstant("N0", asInteger(round(exp(R0))));
+	print(N0);
+	
+	// spatial mate choice
+   initializeInteractionType(1, "xy", reciprocal=T, maxDistance=1/sqrt(PI), sexSegregation = "FM");
+
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = T;
+	
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, 99999);
+	initializeMutationRate(0);
+	initializeRecombinationRate(1e-8);
+}
+
+2: first() {
+	i1.evaluate(p1);
+}
+
+reproduction(NULL, "F") {
+	// First check if female breeds
+	a = individual.age;
+	p_breed = 1/((1 + exp(-1.264*(a-5.424))));
+	if (runif(1) < p_breed) {
+		// Select male with probability that depends on age
+		// Is this correct? Does it guarantee male mate?
+		potential_mates = i1.nearestInteractingNeighbors(individual, p1.size());
+		//print(potential_mates.sex);
+   	if (potential_mates.size()){
+   		m_a = potential_mates.age;
+			p_mate = 1/((1+exp(-1.868*(m_a - 6.5))));
+   		mate = sample(potential_mates, size = 1, weights = p_mate);
+   		for (i in 1:NOFFSPRING){
+   			offspring1 = p1.addCrossed(individual, mate);
+   			pos = individual.spatialPosition;
+      		offspring1.setSpatialPosition(pos);
+      		offspring1.age = 1;
+      	}
+   	}
+	}
+	
+}
+
+
+1 early() {
+	// Initial population
+	sim.addSubpop("p1", N0);
+   p1.setSpatialBounds(c(0, 0, 10, 10));
+   // Initial ages
+   stable_age_distribution = c(0.206, 0.128, 0.105, 0.089, 0.076, 0.065, 0.056, 0.048, 0.041, 
+0.035, 0.029, 0.025, 0.02, 0.017, 0.014, 0.011, 0.009, 0.007, 
+0.005, 0.004, 0.003, 0.002, 0.002, 0.001, 0.001, 0, 0, 0, 0, 
+0, 0, 0, 0, 0, 0, 0, 0, 0);
+   p1.individuals.age = sample(1:38, N0, replace = T, weights = stable_age_distribution);
+   // random initial positions
+   for (ind in p1.individuals) {
+       ind.setSpatialPosition(p1.pointUniform());
+   }
+}
+early() {
+    // Age-based mortality
+    inds = p1.individuals;
+    ages = inds.age;
+    survival = SURVIVAL_MULTIPLIER*exp(-C*((ETA1*ages)^ETA2 + (ETA1*ages)^(1/ETA2) + ETA3 - (ETA1*(ages-1))^ETA2 - (ETA1*(ages-1))^(1/ETA2)));    
+    // Maximum age is 38
+    //survival[ages == 38] = 0;
+    alive = runif(length(inds)) < survival;
+    dead = !alive;
+	 inds.fitnessScaling = asFloat(alive);
+	 dead_inds = p1.individuals[dead];
+	 // Write dead individuals and their ages, parents, and sampling times to file
+    if (community.tick % TICK_INTERVAL == 0 & community.tick >= BURNIN){
+		for(ind in dead_inds){
+			writeFile(OUTPUT, paste(c(ind.pedigreeID, ind.pedigreeParentIDs, ind.age, ind.sex, community.tick), sep = ",") + "," + paste(c(ind.x, ind.y), sep = ","), append = T);
+		}
+	}
+}
+
+late()
+{
+	// Dispersal
+	for (ind in p1.individuals)
+	{
+		newPos = ind.spatialPosition + rnorm(2, 0, SIGMA);
+		ind.setSpatialPosition(p1.pointReflected(newPos));
+	}
+	if (community.tick % TICK_INTERVAL == 0 & community.tick >= BURNIN){
+		writeFile(POPSIZE_FILE, paste(c(community.tick, p1.individualCount), sep = ","), append = T);
+	}
+	print("Late pop size");
+	print(length(p1.individuals));
+}
+
+60 late() {
+	sim.simulationFinished();
+}

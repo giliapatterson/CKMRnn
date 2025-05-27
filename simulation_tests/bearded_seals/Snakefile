@@ -1,0 +1,84 @@
+import numpy as np
+
+# Population sizes to simulate
+Ns = np.linspace(5000, 20000, 51)
+#Ns = np.array([5000])
+# Parameter R0 that corresponds to each N
+R0s = np.around(np.log(Ns), decimals = 2)
+
+# Number of times to run each simulation
+reps = np.arange(1, 51)
+#reps = np.array([1, 2])
+
+# Maximum bias in sampling intensity (most intensely sampled side of the map/least intensely sampled side of the map)
+max_int = 30
+# Biases to simulate
+biases = np.linspace(1, max_int, 3)
+
+# Sample size for each simulation
+max_n = 2000
+
+# Number of years to run the simulation before recording parents
+burnin = 40
+
+# ticks between saving parents
+tick_interval = 1
+
+# File names for the output file of each individual and their parents from each simulation
+parent_file_pattern = "bearded_seal_parents/parents_{R0}_{rep}.csv"
+parents = expand(parent_file_pattern, R0 = R0s, rep = reps)
+
+# File names for population sizes from each simulation
+popsize_file_pattern = "bearded_seal_popsizes/popsizes_{R0}_{rep}.csv"
+popsizes = expand(popsize_file_pattern, R0 = R0s, rep = reps)
+
+# File names for images of parent-offspring pairs, sibling pairs, and sampling intensity for each simulation
+pattern = "bearded_seal_images/{type}_{R0}_{rep}_{bias}_{n}.png"
+types = ["spaghetti_pops", "spaghetti_sibs", "samples", "sampling_intensity"]
+image_files = expand(pattern, type = types, R0 = R0s, rep = reps, bias = biases, n = max_n)
+
+# File names for metadata files for each simulation (values of parameters and number of parent-offspring and sibling pairs)
+metadata_files = expand("bearded_seal_metadata/meta_{R0}_{rep}_{bias}_{n}.csv", R0 = R0s, rep = reps, bias = biases, n = max_n)
+
+# File to store information about all the simulations
+labels_file = "labels.csv"
+
+rule all:
+    input: 
+        image_files, popsizes, parents, metadata_files, labels_file
+
+rule run_slim:
+    params:
+        parent_file = parent_file_pattern,
+        popsize_file = popsize_file_pattern
+    output:
+        parent_file_pattern,
+        popsize_file_pattern
+    shell:
+        "slim -d R0={wildcards.R0} -d 'OUTPUT=\"{params.parent_file}\"' -d 'POPSIZE_FILE=\"{params.popsize_file}\"' -d TICK_INTERVAL={tick_interval} -d BURNIN={burnin} bearded_seals.slim"
+
+rule plot:
+    params:
+        max_bias = max_int
+    input:
+        parent_file_pattern,
+        popsize_file_pattern
+    output:
+        "bearded_seal_images/spaghetti_pops_{R0}_{rep}_{bias}_{n}.png",
+        "bearded_seal_images/spaghetti_sibs_{R0}_{rep}_{bias}_{n}.png",
+        "bearded_seal_images/samples_{R0}_{rep}_{bias}_{n}.png",
+        "bearded_seal_images/sampling_intensity_{R0}_{rep}_{bias}_{n}.png",
+        "bearded_seal_metadata/meta_{R0}_{rep}_{bias}_{n}.csv"
+    shell:
+        "python visualize_parents.py {wildcards.R0} {wildcards.rep} {wildcards.bias} {params.max_bias} {wildcards.n} {input} {output}"
+
+rule labels:
+    input:
+        metadata_files
+    output:
+        labels_file
+    shell:
+        """
+        echo 'R0,rep,bias,N_avg,n,npops,nsibs' >> {output}
+        cat {input}  >> {output}
+        """

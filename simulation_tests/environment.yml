@@ -1,0 +1,26 @@
+name: ckmr_sim_tests
+channels:
+    - conda-forge
+    - bioconda
+    - pytorch
+dependencies:
+    - python=3.11
+    - msprime
+    - pyslim
+    - tskit
+    - numpy
+    - scipy
+    - pytorch
+    - snakemake
+    - jupyterlab
+    - matplotlib
+    - scikit-learn
+    - slim
+    - torchvision
+    - gpustat
+    - r-tidyverse
+    - pandas
+    - nlopt
+    - polars
+    - seaborn
+    - lightning
