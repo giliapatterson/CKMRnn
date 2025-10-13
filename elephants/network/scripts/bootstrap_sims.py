@@ -16,7 +16,7 @@ N_pred = round(float(line))
 # Folder to store simulations
 output_folder = f"{snakemake.config['simulation_folder']}/bootstrap_sims_N{N_pred}/"
 
-command = f"snakemake -s {workflow_path} --configfile {configfile} -d {simulation_folder} --config folder={output_folder} seed={snakemake.params.seed} minN={N_pred} maxN={N_pred} nreps={snakemake.params.nreps}"
+command = f"snakemake --cores {cores} -s {workflow_path} --configfile {configfile} -d {simulation_folder} --config folder={output_folder} seed={snakemake.params.seed} minN={N_pred} maxN={N_pred} nreps={snakemake.params.nreps}"
 
 # Run the Snakemake workflow
 os.system(command)

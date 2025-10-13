@@ -6,8 +6,8 @@ sampling_locations: 'empirical_sampling_locations.txt'
 # Random seed for generating parameters
 seed: 30
 # Number of sims to run
-#nreps: 10000
-nreps: 10
+nreps: 10000
+#nreps: 10
 # Uniform priors on population size and dispersal and mate choice radii
 minN: 100
 maxN: 1500
