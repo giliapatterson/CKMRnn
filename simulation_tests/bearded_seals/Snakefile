@@ -7,8 +7,8 @@ Ns = np.linspace(5000, 20000, 51)
 R0s = np.around(np.log(Ns), decimals = 2)
 
 # Number of times to run each simulation
-reps = np.arange(1, 51)
-#reps = np.array([1, 2])
+#reps = np.arange(1, 51)
+reps = np.array([1, 2])
 
 # Maximum bias in sampling intensity (most intensely sampled side of the map/least intensely sampled side of the map)
 max_int = 30

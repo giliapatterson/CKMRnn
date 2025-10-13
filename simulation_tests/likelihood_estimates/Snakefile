@@ -1,0 +1,46 @@
+import numpy as np
+
+### Specify config file ###
+configfile: "config.yaml"
+
+labels_file = config['labels_file']
+labels_dir = config['labels_dir']
+output_folder = config['output_folder']
+divides = range(0, config['ndivide'])
+
+divided_labels = expand("{output_folder}/divided_labels/labels_{i}.csv", output_folder = output_folder, i = divides)
+estimates_files = expand("{output_folder}/divided_labels/estimates_{i}.csv", output_folder = output_folder, i = divides)
+all_estimates = f"{output_folder}/estimates.csv"
+
+rule all:
+    input:
+        estimates_files
+    output:
+        all_estimates
+    shell:
+        """
+        python combine_labels.py --paths {input} --output_file {output}
+        """
+
+rule divide_labels:
+    input:
+        labels_file = labels_file
+    output:
+        divided_labels
+    shell:
+        """
+        python divide_labels.py --paths {output} --input_file {input.labels_file}
+        """
+
+rule run_estimation:
+    input:
+        f"{output_folder}/divided_labels/labels_{{i}}.csv"
+    output:
+        f"{output_folder}/divided_labels/estimates_{{i}}.csv"
+    params:
+        labels_dir = labels_dir,
+        noptsteps = config['noptsteps']
+    shell:
+        """
+        python run_estimation.py --labels {input} --base_folder {params.labels_dir} --noptsteps {params.noptsteps} --output_file {output}
+        """

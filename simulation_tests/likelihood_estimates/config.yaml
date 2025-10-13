@@ -1,0 +1,5 @@
+labels_file: "../bearded_seals/labels.csv"
+labels_dir: "../bearded_seals/"
+output_folder: "bearded_seals_R0_only"
+ndivide: 10
+noptsteps: 50
