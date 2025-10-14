@@ -14,9 +14,11 @@ if not os.path.exists(bootstrap_pred_folder):
 for i, row in test_sims.iterrows():
     # Predict on bootstrap sims
     N_pred = round(row['pred'])
-    output_file = f"{bootstrap_pred_folder}/predictions_N{N_pred}.csv"
+    suffix = '' if row['num_copies']==1 else f"_{i+1}"
+    output_file = f"{bootstrap_pred_folder}/predictions_N{N_pred}{suffix}.csv"
     if os.path.exists(output_file):
         print("Predictions already exist, skipping")
+        test_sims.loc[i, 'bootstrap_predictions_file'] = output_file
         continue
     command = f"python scripts/predict.py --sim_folder {row['bootstrap_folder']} --network {snakemake.input.network} --predictions_file {output_file}"
     retcode = subprocess.call(command, shell=True)
