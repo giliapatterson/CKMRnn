@@ -1,0 +1,79 @@
+#############
+# Test how well calibrated the bootstrap confidence intervals are
+# Steps:
+# 1. Generate a test set of simulations
+# 2. Predict population size for each simulation
+# 3. Perform parametric bootstrapping for each simulation
+# 4. Compute the rank of the true population size within the bootstrap replicats
+# 5. Make a qqplot of ranks vs uniform ranks. If the CIs are well calibrated,
+#    the rank of the true value should be uniformly distributed.
+#############
+
+### Specify config file ###
+configfile: "config.yaml" 
+workdir: config['workdir']
+empirical_folder = config['empirical_folder']
+# Folder where training simulations are stored
+simulation_folder = config['simulation_folder']
+# Labels for training sims
+labels = config['labels']
+
+rule all:
+    input:
+         "ci_calibration_results/test_sim_predictions_and_bootstrap_reps.csv"
+
+# Run test simulations
+rule test_sims:
+    output:
+        output_folder = "ci_calibration_results/test_sims_folder.txt"
+    params:
+        nreps = 50,
+        seed = 3002
+    script:
+        "scripts/test_sims.py"
+
+# Predict for each test simulation
+rule test_sim_preds:
+    input:
+        network = "../network/network_output/network.pth",
+        sim_folder_file = rules.test_sims.output.output_folder
+    output:
+        predictions_file = "ci_calibration_results/test_sim_predictions.csv"
+    # resources: 
+    #     runtime = '4h',
+    #     mem_mb = 50000,
+    #     gpus = 1,
+    #     slurm_partition = "kerngpu,gpu",
+    #     slurm_extra = "--gres=gpu:1 --constraint=a100"
+    shell:
+        "python scripts/predict.py --sim_folder_file {input.sim_folder_file} --network {input.network} --predictions_file {output.predictions_file}"
+
+# Run parametric bootstrap for each test simulation
+rule bootstrap_sims:
+    input:
+        pred = rules.test_sim_preds.output.predictions_file
+    output:
+        predictions_with_bootstrap = "ci_calibration_results/test_sim_predictions_and_bootstrap.csv"
+    params:
+        nreps = 500,
+        seed = 340
+    script:
+        "scripts/bootstrap_sims.py"
+
+# Predict from bootstrap sims
+rule bootstrap_predictions:
+    input:
+        pred = rules.bootstrap_sims.output.predictions_with_bootstrap,
+        network = rules.test_sim_preds.input.network,
+    output:
+        predictions_with_bootstrap_reps = "ci_calibration_results/test_sim_predictions_and_bootstrap_reps.csv"
+    params:
+        bootstrap_pred_folder = "ci_calibration_results/bootstrap_preds"
+    # resources: 
+    #     runtime = '4h',
+    #     mem_mb = 50000,
+    #     gpus = 1,
+    #     slurm_partition = "kerngpu,gpu",
+    #     slurm_extra = "--gres=gpu:1 --constraint=a100"
+    script:
+        "scripts/bootstrap_predictions.py"
