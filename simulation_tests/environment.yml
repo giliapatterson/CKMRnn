@@ -20,6 +20,7 @@ dependencies:
     - gpustat
     - r-tidyverse
     - r-gridExtra
+    - r-cowplot
     - pandas
     - nlopt
     - polars
