@@ -44,9 +44,9 @@ pops_spaghetti = Image.new("1", (w, h))
 img1 = ImageDraw.Draw(pops_spaghetti)
 skf.draw_pairs(pops, img1, max_width, max_height, w, h)
 
-sibs_spaghetti = Image.new("1", (w, h))
-img2 = ImageDraw.Draw(sibs_spaghetti)
-skf.draw_pairs(sibs, img2, max_width, max_height, w, h)
+#sibs_spaghetti = Image.new("1", (w, h))
+#img2 = ImageDraw.Draw(sibs_spaghetti)
+#skf.draw_pairs(sibs, img2, max_width, max_height, w, h)
 
 recaptures_spaghetti = Image.new("1", (w, h))
 img3 = ImageDraw.Draw(recaptures_spaghetti)

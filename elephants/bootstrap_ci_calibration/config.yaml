@@ -1,0 +1,4 @@
+workdir: '.'
+simulation_folder: '../simulations'
+labels: '../simulations/elephant_simulations/spatial_labels.csv'
+empirical_folder: 'empirical_input_images'
