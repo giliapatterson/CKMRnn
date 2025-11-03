@@ -1,6 +1,7 @@
 library(tidyverse)
 library(gridExtra)
-theme_set(theme_gray(base_size = 50))
+library(cowplot)
+theme_set(theme_gray(base_size = 14))
 
 # Results for less than or greater than this size
 breakpoint = 12000
@@ -28,24 +29,26 @@ change_change<- mutate(change_change, error = bearded_nn_pred - true_N_final,
 # True vs predicted
 bias_labels <- c('1' = 'Random', '16.5' = 'Medium bias', '31.875' = 'High bias')
 tvsp <- ggplot(con_con, aes(x = truth, y = bearded_nn_pred)) +
-  geom_point() +
+  geom_point(size = 0.5, stroke = 0.2) +
   xlab("True N") +
   ylab("Predicted N") +
-  geom_abline(slope = 1) +
+  geom_abline(slope = 1, linewidth = 0.2) +
   facet_wrap(~bias, labeller = as_labeller(bias_labels))
 violin_df <- con_con
 violin_df$breakpoint = 'All'
 violin_df <- bind_rows(con_con, violin_df)
 violin <- ggplot(violin_df, aes(x = breakpoint, y = rel_error)) +
-  geom_violin() +
-  geom_hline(yintercept = 0) +
+  geom_violin(linewidth = 0.2) +
+  geom_hline(yintercept = 0, linewidth = 0.2) +
   facet_wrap(~bias, labeller = as_labeller(bias_labels)) +
   xlab("Test set population sizes") +
-  ylab("Relative error")
-g <- arrangeGrob(tvsp, violin)
-ggsave("constant_constant.png", g, width = 30, height = 20)
-ggsave("constant_constant_tvsp.png", tvsp, width = 30, height = 10)
-ggsave("constant_constant_error.png", violin, width = 30, height = 10)
+  ylab("Relative error") +
+  scale_x_discrete(labels = c("All", expression(N<12000), expression(N>=12000)))
+g <- plot_grid(tvsp, violin, align = "hv", ncol = 1,
+               labels = c("(a)", "(b)"),
+               label_x = 0, label_y = 0,
+               hjust = -0.5, vjust = -0.5)
+ggsave("figure3.pdf", g, width = 8, height = 5.33)
 
 # Relative error
 ggplot(con_con, aes(x = truth, y = rel_error)) +
@@ -63,22 +66,24 @@ con_change15 <- filter(con_change, bias == 15.5, surv_mult != 1)
 surv_labels <- c('0.99' = "Decreasing", '1' = "Constant", "1.01" = "Increasing")
 # True vs predicted
 tvsp <- ggplot(con_change15, aes(x = true_N_final, y = bearded_nn_pred)) +
-  geom_point() +
+  geom_point(size = 0.5, stroke = 0.2) +
   xlab("True Final N") +
   ylab("Predicted N") +
-  geom_abline(slope = 1) +
-  facet_wrap(~surv_mult, scales = "free_y", labeller = as_labeller(surv_labels))
+  geom_abline(slope = 1, linewidth = 0.2) +
+  facet_wrap(~surv_mult, scales = "free_y", labeller = as_labeller(surv_labels)) +
+  scale_x_continuous(breaks = c(5000, 15000, 25000))
 # Relative error
 violin <- ggplot(con_change, aes(x = surv_mult, y = rel_error)) +
-  geom_violin() +
+  geom_violin(linewidth = 0.2) +
   scale_x_discrete(labels = as_labeller(surv_labels)) +
-  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = 0, linewidth = 0.2) +
   xlab("Population trend") +
   ylab("Relative error")
-g <- arrangeGrob(tvsp, violin, nrow = 1, widths = c(2/3, 1/3))
-ggsave("constant_changing.png", g, width = 30, height = 10)
-ggsave("constant_changing_tvsp.png", tvsp, width = 20, height = 10)
-ggsave("constant_changing_error.png", violin, width = 20, height = 10)
+g <- plot_grid(tvsp, violin, axis = "tblr", ncol = 1,
+               labels = c("(a)", "(b)"),
+               label_x = 0, label_y = 0,
+               hjust = -0.5, vjust = -0.5)
+ggsave("figure4.pdf", g, width = 6, height = 5.33)
 
 ## Results for changing-size training, changing size test
 # Filter to use only bias of 15.5
@@ -87,22 +92,26 @@ change_change15 <- filter(change_change, bias == 15.5)
 surv_labels <- c('0.99' = "Decreasing", '1' = "Constant", "1.01" = "Increasing")
 # True vs predicted
 tvsp <- ggplot(change_change15, aes(x = true_N_final, y = bearded_nn_pred)) +
-  geom_point() +
+  geom_point(size = 0.5, stroke = 0.2) +
   xlab("True Final N") +
   ylab("Predicted N") +
-  geom_abline(slope = 1) +
-  facet_wrap(~surv_mult, scales = "free_y", labeller = as_labeller(surv_labels))
+  geom_abline(slope = 1, linewidth = 0.2) +
+  facet_wrap(~surv_mult, scales = "free_y", labeller = as_labeller(surv_labels)) +
+  scale_x_continuous(breaks = c(5000, 15000, 25000))
 # Relative error
 violin <- ggplot(change_change, aes(x = surv_mult, y = rel_error)) +
-  geom_violin() +
+  geom_violin(linewidth = 0.2) +
   scale_x_discrete(labels = as_labeller(surv_labels)) +
-  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = 0,linewidth = 0.2) +
   xlab("Population trend") +
   ylab("Relative error")
-g <- arrangeGrob(tvsp, violin, nrow = 1, widths = c(3/4, 1/4))
-ggsave("changing_changing.png", g, width = 40, height = 10)
-ggsave("changing_changing_tvsp.png", tvsp, width = 30, height = 10)
-ggsave("changing_changing_error.png", violin, width = 20, height = 10)
+bottom_row <- plot_grid(NULL, violin, NULL, ncol = 3, rel_widths = c(0.5, 2, 0.5))
+g <- plot_grid(tvsp, bottom_row, axis = "tblr", ncol = 1,
+               labels = c("(a)", "(b)"),
+               label_x = 0, label_y = 0,
+               hjust = -0.5, vjust = -0.5)
+ggsave("figure5.pdf", g, width = 8, height = 5.33)
+
 
 ## Table of mean absolute relative error ##
 # Columns: Training set, test set bias, test set trend, mrae overall, mrae < 12000, mrae > 12000
